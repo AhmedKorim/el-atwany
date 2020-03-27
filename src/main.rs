@@ -7,6 +7,7 @@
     clippy::fallible_impl_from,
     clippy::missing_const_for_fn
 )]
+#![feature(async_closure)]
 
 use async_ctrlc::CtrlC;
 use log::info;
@@ -18,7 +19,7 @@ mod service;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     env::set_var("RUST_LOG", "atwany");
-    dotenv::dotenv()?;
+//    dotenv::dotenv()?;
     pretty_env_logger::init_timed();
     let addr = "0.0.0.0:50051".parse()?;
     info!("Starting Server on {}", addr);

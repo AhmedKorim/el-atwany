@@ -1,6 +1,6 @@
 use std::env;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("cargo:rerun-if-changed=proto/owl.proto");
+    println!("cargo:rerun-if-changed=proto/atwany.proto");
     let current_env = env::var("CARGO_CFG_TARGET_ENV")?;
     println!("Current Target env={}", current_env);
     if current_env.to_lowercase() == "musl" {

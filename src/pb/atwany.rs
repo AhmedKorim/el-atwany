@@ -5,21 +5,19 @@ pub mod media {
     pub struct UploadResponse {
         #[prost(enumeration = "Size", tag = "1")]
         pub size: i32,
-        #[prost(string, tag = "2")]
-        pub filename: std::string::String,
+        #[prost(bytes, tag = "2")]
+        pub buffer: std::vec::Vec<u8>,
         #[prost(string, tag = "3")]
         pub file_extension: std::string::String,
-        #[prost(enumeration = "AspectRatio", tag = "4")]
-        pub aspect_ratio: i32,
-        #[prost(string, tag = "5")]
-        pub file_path: std::string::String,
+        #[prost(string, tag = "4")]
+        pub aspect_ratio: std::string::String,
     }
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct UploadRequest {
         #[prost(bytes, tag = "1")]
         pub image: std::vec::Vec<u8>,
-        #[prost(string, tag = "2")]
-        pub mimetype: std::string::String,
+        #[prost(enumeration = "MimeType", tag = "2")]
+        pub mimetype: i32,
         #[prost(string, tag = "3")]
         pub file_name: std::string::String,
     }
@@ -56,6 +54,24 @@ pub mod media {
     pub enum AspectRatio {
         Default = 0,
         X16x9 = 1,
+    }
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration,
+    )]
+    #[repr(i32)]
+    pub enum MimeType {
+        Png = 0,
+        Jpeg = 1,
+        Gif = 2,
+        Webp = 3,
     }
 }
 /// Generated server implementations.

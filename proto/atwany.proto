@@ -2,32 +2,47 @@ syntax = "proto3";
 package atwany;
 
 message media {
-  enum Size {
-    ORIGINAL = 0;
-    THUMBNAIL = 1;
-    SMALL = 2;
-    MEDIUM = 3;
-  }
-  enum AspectRatio {
-    DEFAULT = 0;
-    X16X9 = 1;
-  }
+    enum Size {
+        ORIGINAL = 0;
+        THUMBNAIL = 1;
+        SMALL = 2;
+        MEDIUM = 3;
+    }
+    enum AspectRatio {
+        DEFAULT = 0;
+        X16X9 = 1;
+    }
 
-  message UploadResponse {
-    Size size = 1;
-    string filename = 2;
-    string fileExtension = 3;
-    AspectRatio aspectRatio = 4;
-    string filePath = 5;
-  }
+    enum MimeType {
+        PNG = 0;
+        JPEG = 1;
+        GIF = 2;
+        WEBP = 3;
 
-  message UploadRequest {
-    bytes image = 1;
-    string mimetype = 2;
-    string fileName = 3;
-  }
+//        PNM = 4;
+//        TIFF = 5;
+//        TGA = 6;
+//        DDS = 7;
+//        BMP = 9;
+//        ICO = 10;
+//        HDR = 11;
+
+    }
+
+    message UploadResponse {
+        Size size = 1;
+        bytes buffer = 2;
+        string fileExtension = 3;
+        string aspectRatio = 4;
+    }
+
+    message UploadRequest {
+        bytes image = 1;
+        MimeType mimetype = 2;
+        string fileName = 3;
+    }
 }
 
 service Media {
-  rpc Upload(media.UploadRequest) returns (stream media.UploadResponse);
+    rpc Upload (media.UploadRequest) returns (stream media.UploadResponse);
 }

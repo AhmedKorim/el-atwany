@@ -15,10 +15,10 @@ prost-types = "0.6"
 async-ctrlc = "1.0"
 dotenv = "0.15.0"
 futures = "0.3"
-
+image="0.23"
 [dependencies.tokio]
 version = "^0.2"
-features = ["macros", "sync", "time"]
+features = ["macros", "sync", "time" ,"rt-core"]
 
 [build-dependencies]
 tonic-build = "0.1"
