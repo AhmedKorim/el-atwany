@@ -18,17 +18,13 @@ message media {
         JPEG = 1;
         GIF = 2;
         WEBP = 3;
-
-//        PNM = 4;
-//        TIFF = 5;
-//        TGA = 6;
-//        DDS = 7;
-//        BMP = 9;
-//        ICO = 10;
-//        HDR = 11;
-
     }
 
+    message UploadAndWriteResponse {
+        repeated Size sizes = 1;
+        string fileExtension = 3;
+        string aspectRatio = 4;
+    }
     message UploadResponse {
         Size size = 1;
         bytes buffer = 2;
@@ -45,4 +41,5 @@ message media {
 
 service Media {
     rpc Upload (media.UploadRequest) returns (stream media.UploadResponse);
+    rpc UploadAndWrite(media.UploadRequest) returns (media.UploadAndWriteResponse);
 }

@@ -1,7 +1,7 @@
+use std::{env, fs};
 use std::borrow::Borrow;
 use std::convert::TryInto;
-use std::env;
-use std::io::Cursor;
+use std::io::{Cursor, Write};
 use std::path;
 
 use futures::channel::mpsc;
@@ -12,7 +12,7 @@ use image::jpeg::JPEGEncoder;
 use tonic::{Request, Response, Status};
 
 use crate::pb::atwany::{media, media_server::Media};
-use crate::pb::atwany::media::MimeType;
+use crate::pb::atwany::media::{MimeType, Size, UploadAndWriteResponse, UploadRequest, UploadResponse};
 pub use crate::pb::atwany::media_server::MediaServer;
 
 pub struct MediaService;
@@ -26,9 +26,8 @@ impl Media for MediaService {
         request: Request<media::UploadRequest>,
     ) -> Result<Response<Self::UploadStream>, Status> {
         let req = request.into_inner();
-        dbg!(&req);
         let (mut tx, rx) = mpsc::channel(4);
-        let task  = async move || -> Result<(), Status> {
+        let task = async move || -> Result<(), Status> {
             let res = process(req)
                 .map_err(|e| Status::internal(e.to_string()))?;
             for res_slice in res {
@@ -44,13 +43,42 @@ impl Media for MediaService {
 
         Ok(Response::new(rx))
     }
+
+    async fn upload_and_write(&self, request: Request<UploadRequest>) -> Result<Response<UploadAndWriteResponse>, Status> {
+        let req = request.into_inner();
+        let mut sizes: Vec<i32> = Vec::with_capacity(4);// todo make this more dynamic
+        let file_name =req.file_name.clone();
+        let response_buffers = process(req);
+        // let UploadResponse { aspect_ratio, file_extension } = response_buffers?[0]
+        //     .clone();
+
+
+        let response_buffers = response_buffers
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let aspect_ratio = response_buffers[0].aspect_ratio.clone();
+        let file_extension = response_buffers[0].file_extension.clone();
+        for res_slice_buffer in response_buffers {
+            let image_size = res_slice_buffer.size;
+            let file_path = create_image_path(&file_name.as_str(), image_size);
+            let mut image_file = fs::File::create(file_path.clone())?;
+            image_file.write(&res_slice_buffer.buffer)?;
+            sizes.push(res_slice_buffer.size);
+        };
+        let response = UploadAndWriteResponse {
+            sizes,
+            aspect_ratio,
+            file_extension,
+        };
+
+        Ok(Response::new(response))
+    }
 }
 
-//fn create_image_path(file_name: &str, size: &str) -> anyhow::Result<path::Path> {
-//    let mut path = env::current_dir()?;
-//    path.push(format!("images/{}-{}.jpeg", file_name, size));
-//    Ok(path.into())
-//}
+fn create_image_path(file_name: &str, size: i32) -> path::PathBuf {
+    let mut root = env::current_dir().unwrap();
+    let path = root.join(format!("images/{}-{}.jpeg", file_name, size));
+    path
+}
 
 fn process(req: media::UploadRequest) ->
 anyhow::Result<Vec<media::UploadResponse>> {
@@ -83,25 +111,25 @@ anyhow::Result<Vec<media::UploadResponse>> {
         size: media::Size::Thumbnail.into(),
         buffer: thumbnail,
         file_extension: "jpeg".to_string(),
-        aspect_ratio: "16:9".to_string(),
+        aspect_ratio: aspect_ratio.to_string(),
     });
     results.push(media::UploadResponse {
         size: media::Size::Small.into(),
         buffer: small,
         file_extension: "jpeg".to_string(),
-        aspect_ratio: "16:9".to_string(),
+        aspect_ratio: aspect_ratio.to_string(),
     });
     results.push(media::UploadResponse {
         size: media::Size::Medium.into(),
         buffer: medium,
         file_extension: "jpeg".to_string(),
-        aspect_ratio: "16:9".to_string(),
+        aspect_ratio: aspect_ratio.to_string(),
     });
     results.push(media::UploadResponse {
         size: media::Size::Original.into(),
         buffer: buf.into_inner(),
         file_extension: "jpeg".to_string(),
-        aspect_ratio: "16:9".to_string(),
+        aspect_ratio: aspect_ratio.to_string(),
     });
 
     Ok(results)
