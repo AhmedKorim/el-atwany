@@ -1,9 +1,25 @@
 [package]
-name = "el-atwany"
+name = "atwany"
 version = "0.1.0"
-authors = ["ahmed <ahmedkorrim@gmail.com>"]
+authors = ["ahmed <ahmedkorrim@gmail.com>", "Shady Khalifa <shekohex@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+tonic = { version = "0.1", features = ["tls"] }
+bytes = "0.5"
+log = "^0.4"
+pretty_env_logger = "^0.4"
+anyhow = "1.0"
+prost = "0.6"
+prost-types = "0.6"
+async-ctrlc = "1.0"
+dotenv = "0.15.0"
+futures = "0.3"
+
+[dependencies.tokio]
+version = "^0.2"
+features = ["macros", "sync", "time"]
+
+[build-dependencies]
+tonic-build = "0.1"
+glob = "0.3"
