@@ -48,8 +48,14 @@ impl Media for MediaService {
         for res_slice_buffer in response_buffers {
             let image_size = Size::from_i32(res_slice_buffer.size).unwrap();
             let file_path = create_image_path(&file_name.as_str(), image_size);
-            let mut image_file = fs::File::create(file_path)?;
-            image_file.write_all(&res_slice_buffer.buffer)?;
+            let mut image_file = fs::File::create(file_path)
+                .map_err(|e| Status::internal(e.to_string()))?;
+            image_file
+                .write_all(&res_slice_buffer.buffer)
+                .map_err(|e| Status::internal(e.to_string()))?;
+            image_file
+                .flush()
+                .map_err(|e| Status::internal(e.to_string()))?;
             sizes.push(res_slice_buffer.size);
         }
         let response = UploadAndWriteResponse {
@@ -79,10 +85,18 @@ fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
     let dynamic_image = image::load_from_memory_with_format(&image, format)?;
     let thumbnail = dynamic_image.thumbnail(120, 120).to_bytes();
     let small = dynamic_image
-        .resize(300, 250, FilterType::Triangle)
+        .resize(
+            dynamic_image.width() / 3,
+            dynamic_image.height() / 3,
+            FilterType::Nearest,
+        )
         .to_bytes();
     let medium = dynamic_image
-        .resize(800, 800, FilterType::Triangle)
+        .resize(
+            dynamic_image.width() / 2,
+            dynamic_image.height() / 2,
+            FilterType::Nearest,
+        )
         .to_bytes();
     let mut buf = Cursor::new(Vec::with_capacity(image.capacity()));
     JPEGEncoder::new_with_quality(&mut buf, 80).encode(
