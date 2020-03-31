@@ -5,13 +5,12 @@ use std::{
 };
 
 use futures::{channel::mpsc, SinkExt};
-use image::{
-    imageops::FilterType, jpeg::JPEGEncoder, GenericImageView, ImageFormat,
-};
+use image::{imageops::FilterType, jpeg::JPEGEncoder, GenericImageView, ImageFormat, DynamicImage, jpeg};
 use tonic::{Request, Response, Status};
 
 pub use crate::pb::atwany::media_server::MediaServer;
 use crate::pb::atwany::{media::*, media_server::Media};
+use prost::Message;
 
 pub struct MediaService;
 
@@ -83,24 +82,22 @@ fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
         MimeType::Webp => ImageFormat::WebP,
     };
     let dynamic_image = image::load_from_memory_with_format(&image, format)?;
-    let thumbnail = dynamic_image.thumbnail(120, 120).to_bytes();
+    let thumbnail = dynamic_image.thumbnail(120, 120);
     let small = dynamic_image
         .resize(
             dynamic_image.width() / 3,
             dynamic_image.height() / 3,
-            FilterType::Nearest,
-        )
-        .to_bytes();
+            FilterType::Gaussian,
+        );
     let medium = dynamic_image
         .resize(
             dynamic_image.width() / 2,
             dynamic_image.height() / 2,
-            FilterType::Nearest,
-        )
-        .to_bytes();
-    let mut buf = Cursor::new(Vec::with_capacity(image.capacity()));
+            FilterType::Gaussian,
+        );
+    let mut buf = Vec::new();
     JPEGEncoder::new_with_quality(&mut buf, 80).encode(
-        &image,
+        &dynamic_image.to_bytes(),
         dynamic_image.width(),
         dynamic_image.height(),
         dynamic_image.color(),
@@ -110,30 +107,37 @@ fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
     let results = vec![
         UploadResponse {
             size: Size::Thumbnail.into(),
-            buffer: thumbnail,
+            buffer: get_image_bytes(thumbnail),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
         },
         UploadResponse {
             size: Size::Small.into(),
-            buffer: small,
+            buffer: get_image_bytes(small),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
         },
         UploadResponse {
             size: Size::Medium.into(),
-            buffer: medium,
+            buffer: get_image_bytes(medium),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
         },
         UploadResponse {
             size: Size::Original.into(),
-            buffer: buf.into_inner(),
+            buffer: buf,
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
         },
     ];
     Ok(results)
+}
+
+fn get_image_bytes(image: DynamicImage) -> Vec<u8> {
+    let mut output = Vec::new();
+    let mut j = jpeg::JPEGEncoder::new_with_quality(&mut output, 80);
+    j.encode(&image.to_bytes(), image.width(), image.height(), image.color()).unwrap();
+    output
 }
 
 impl ToString for Size {
