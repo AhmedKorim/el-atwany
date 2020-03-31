@@ -3,10 +3,11 @@ package atwany;
 
 message media {
     enum Size {
-        ORIGINAL = 0;
-        THUMBNAIL = 1;
-        SMALL = 2;
-        MEDIUM = 3;
+        ORIGINAL = 0; // the ordinal one with compression
+        PLACEHOLDER = 1; // VERY SMALL VARIANT LESS THAN 1 K 20X20
+        THUMBNAIL = 2; // smaller variant  200x200 thumbnail
+        SMALL = 3; // smaller variant  400x4æ00 thumbnail
+        MEDIUM = 4; //small variant fo the image 500*500
     }
     enum AspectRatio {
         DEFAULT = 0;
@@ -41,5 +42,5 @@ message media {
 
 service Media {
     rpc Upload (media.UploadRequest) returns (stream media.UploadResponse);
-    rpc UploadAndWrite(media.UploadRequest) returns (media.UploadAndWriteResponse);
+    rpc UploadAndWrite (media.UploadRequest) returns (media.UploadAndWriteResponse);
 }

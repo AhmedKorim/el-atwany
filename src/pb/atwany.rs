@@ -43,10 +43,16 @@ pub mod media {
     )]
     #[repr(i32)]
     pub enum Size {
+        /// the ordinal one with compression
         Original = 0,
-        Thumbnail = 1,
-        Small = 2,
-        Medium = 3,
+        /// VERY SMALL VARIANT LESS THAN 1 K 20X20
+        Placeholder = 1,
+        /// smaller variant  200x200 thumbnail
+        Thumbnail = 2,
+        /// smaller variant  400x4æ00 thumbnail
+        Small = 3,
+        /// small variant fo the image 500*500
+        Medium = 4,
     }
     #[derive(
         Clone,
