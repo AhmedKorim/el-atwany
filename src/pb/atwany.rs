@@ -49,7 +49,7 @@ pub mod media {
         Placeholder = 1,
         /// smaller variant  200x200 thumbnail
         Thumbnail = 2,
-        /// smaller variant  400x4æ00 thumbnail
+        /// smaller variant  400x400 thumbnail
         Small = 3,
         /// small variant fo the image 500*500
         Medium = 4,

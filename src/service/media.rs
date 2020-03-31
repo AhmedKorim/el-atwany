@@ -5,12 +5,12 @@ use std::{
 };
 
 use futures::{channel::mpsc, SinkExt};
-use image::{imageops::FilterType, jpeg::JPEGEncoder, GenericImageView, ImageFormat, DynamicImage, jpeg};
+use image::{DynamicImage, GenericImageView, ImageFormat, imageops::FilterType, jpeg, jpeg::JPEGEncoder};
+use prost::Message;
 use tonic::{Request, Response, Status};
 
-pub use crate::pb::atwany::media_server::MediaServer;
 use crate::pb::atwany::{media::*, media_server::Media};
-use prost::Message;
+pub use crate::pb::atwany::media_server::MediaServer;
 
 pub struct MediaService;
 
@@ -81,33 +81,39 @@ fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
         MimeType::Gif => ImageFormat::Gif,
         MimeType::Webp => ImageFormat::WebP,
     };
-    let dynamic_image = image::load_from_memory_with_format(&image, format)?;
-    let thumbnail = dynamic_image.thumbnail(120, 120);
+    let dynamic_image = match image::load_from_memory_with_format(&image, format) {
+        Ok(image_data) => image_data,
+        Err(e) => {
+            dbg!(e.to_string());
+            image::load_from_memory(&image).unwrap()
+        }
+    };
+    let placeholder = dynamic_image.thumbnail(20, 20);
+    let thumbnail = dynamic_image.thumbnail(200, 200);
     let small = dynamic_image
         .resize(
-            dynamic_image.width() / 3,
-            dynamic_image.height() / 3,
-            FilterType::Gaussian,
+            400,
+            400,
+            FilterType::Triangle,
         );
     let medium = dynamic_image
         .resize(
-            dynamic_image.width() / 2,
-            dynamic_image.height() / 2,
-            FilterType::Gaussian,
+            dynamic_image.width(),
+            dynamic_image.height(),
+            FilterType::Triangle,
         );
-    let mut buf = Vec::new();
-    JPEGEncoder::new_with_quality(&mut buf, 80).encode(
-        &dynamic_image.to_bytes(),
-        dynamic_image.width(),
-        dynamic_image.height(),
-        dynamic_image.color(),
-    )?;
     let aspect_ratio = dynamic_image.width() / dynamic_image.height(); // 16:9
 
     let results = vec![
         UploadResponse {
             size: Size::Thumbnail.into(),
             buffer: get_image_bytes(thumbnail),
+            file_extension: "jpeg".to_string(),
+            aspect_ratio: aspect_ratio.to_string(),
+        },
+        UploadResponse {
+            size: Size::Thumbnail.into(),
+            buffer: get_image_bytes(placeholder),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
         },
@@ -125,7 +131,7 @@ fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
         },
         UploadResponse {
             size: Size::Original.into(),
-            buffer: buf,
+            buffer: image,
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
         },
@@ -135,7 +141,7 @@ fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
 
 fn get_image_bytes(image: DynamicImage) -> Vec<u8> {
     let mut output = Vec::new();
-    let mut j = jpeg::JPEGEncoder::new_with_quality(&mut output, 80);
+    let mut j = jpeg::JPEGEncoder::new_with_quality(&mut output, 20);
     j.encode(&image.to_bytes(), image.width(), image.height(), image.color()).unwrap();
     output
 }
@@ -143,9 +149,10 @@ fn get_image_bytes(image: DynamicImage) -> Vec<u8> {
 impl ToString for Size {
     fn to_string(&self) -> String {
         match self {
-            Size::Small => "sm".to_string(),
+            Size::Small => "sm-400".to_string(),
+            Size::Thumbnail => "th-200".to_string(),
+            Size::Placeholder => "th-20".to_string(),
             Size::Medium => "md".to_string(),
-            Size::Thumbnail => "th".to_string(),
             Size::Original => "org".to_string(),
         }
     }

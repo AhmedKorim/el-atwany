@@ -6,7 +6,7 @@ message media {
         ORIGINAL = 0; // the ordinal one with compression
         PLACEHOLDER = 1; // VERY SMALL VARIANT LESS THAN 1 K 20X20
         THUMBNAIL = 2; // smaller variant  200x200 thumbnail
-        SMALL = 3; // smaller variant  400x4æ00 thumbnail
+        SMALL = 3; // smaller variant  400x400 thumbnail
         MEDIUM = 4; //small variant fo the image 500*500
     }
     enum AspectRatio {
