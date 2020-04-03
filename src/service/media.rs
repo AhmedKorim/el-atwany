@@ -11,6 +11,7 @@ use tonic::{Request, Response, Status};
 
 use crate::pb::atwany::{media::*, media_server::Media};
 pub use crate::pb::atwany::media_server::MediaServer;
+use crate::pb::atwany::media::upload_and_write_response::MediaSize;
 
 pub struct MediaService;
 
@@ -38,10 +39,11 @@ impl Media for MediaService {
         request: Request<UploadRequest>,
     ) -> Result<Response<UploadAndWriteResponse>, Status> {
         let req = request.into_inner();
-        let mut sizes: Vec<i32> = Vec::with_capacity(4); // todo make this more dynamic
         let file_name = req.file_name.clone();
         let response_buffers =
             process(req).map_err(|e| Status::internal(e.to_string()))?;
+        let mut media_meta: Vec<MediaSize> = Vec::with_capacity(response_buffers.capacity()); // todo make this
+        // more dynamic
         let aspect_ratio = response_buffers[0].aspect_ratio.clone();
         let file_extension = response_buffers[0].file_extension.clone();
         for res_slice_buffer in response_buffers {
@@ -55,12 +57,18 @@ impl Media for MediaService {
             image_file
                 .flush()
                 .map_err(|e| Status::internal(e.to_string()))?;
-            sizes.push(res_slice_buffer.size);
+            dbg!(res_slice_buffer.size);
+            media_meta.push(MediaSize {
+                height: res_slice_buffer.height,
+                width: res_slice_buffer.width,
+                size: res_slice_buffer.size,
+                url_suffix: res_slice_buffer.url_suffix,
+            })
         }
         let response = UploadAndWriteResponse {
-            sizes,
             aspect_ratio,
             file_extension,
+            media_meta,
         };
         Ok(Response::new(response))
     }
@@ -103,48 +111,72 @@ fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
             FilterType::Triangle,
         );
     let aspect_ratio = dynamic_image.width() / dynamic_image.height(); // 16:9
-
+    dbg!(aspect_ratio);
+    dbg!(format!(" dynamic_image width {} height {}", dynamic_image.width(), dynamic_image.height
+    ()));
+    dbg!(format!("small width {} height {}", small.width(), small.height()));
+    dbg!(format!("medium width {} height {}", medium.width(), medium.height()));
     let results = vec![
         UploadResponse {
             size: Size::Thumbnail.into(),
-            buffer: get_image_bytes(thumbnail),
+            buffer: get_image_bytes(&thumbnail),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
+            width: thumbnail.width().into(),
+            height: thumbnail.height().into(),
+            url_suffix: Size::Thumbnail.to_string(),
         },
         UploadResponse {
-            size: Size::Thumbnail.into(),
-            buffer: get_image_bytes(placeholder),
+            size: Size::Placeholder.into(),
+            buffer: get_image_bytes(&placeholder),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
+            width: placeholder.width().into(),
+            height: placeholder.height().into(),
+            url_suffix: Size::Placeholder.to_string(),
         },
         UploadResponse {
             size: Size::Small.into(),
-            buffer: get_image_bytes(small),
+            buffer: get_image_bytes(&small),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
+            width: small.width().into(),
+            height: small.height().into(),
+            url_suffix: Size::Small.to_string(),
         },
         UploadResponse {
             size: Size::Medium.into(),
-            buffer: get_image_bytes(medium),
+            buffer: get_image_bytes(&medium),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
+            width: medium.width().into(),
+            height: medium.height().into(),
+            url_suffix: Size::Medium.to_string(),
+
         },
         UploadResponse {
             size: Size::Original.into(),
             buffer: image,
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
+            width: dynamic_image.width().into(),
+            height: dynamic_image.height().into(),
+            url_suffix: Size::Original.to_string(),
         },
     ];
     Ok(results)
 }
 
-fn get_image_bytes(image: DynamicImage) -> Vec<u8> {
+fn get_image_bytes(image: &DynamicImage) -> Vec<u8> {
     let mut output = Vec::new();
     let mut j = jpeg::JPEGEncoder::new_with_quality(&mut output, 20);
     j.encode(&image.to_bytes(), image.width(), image.height(), image.color()).unwrap();
     output
 }
+
+// fn get_aspect_ratio(width: i32, height: i32) -> String {
+//     // 600/450 =>
+// }
 
 impl ToString for Size {
     fn to_string(&self) -> String {

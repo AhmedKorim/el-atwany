@@ -3,12 +3,25 @@ pub struct Media {}
 pub mod media {
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct UploadAndWriteResponse {
-        #[prost(enumeration = "Size", repeated, tag = "1")]
-        pub sizes: ::std::vec::Vec<i32>,
-        #[prost(string, tag = "3")]
+        #[prost(string, tag = "1")]
         pub file_extension: std::string::String,
-        #[prost(string, tag = "4")]
+        #[prost(string, tag = "2")]
         pub aspect_ratio: std::string::String,
+        #[prost(message, repeated, tag = "6")]
+        pub media_meta: ::std::vec::Vec<upload_and_write_response::MediaSize>,
+    }
+    pub mod upload_and_write_response {
+        #[derive(Clone, PartialEq, ::prost::Message)]
+        pub struct MediaSize {
+            #[prost(uint32, tag = "3")]
+            pub width: u32,
+            #[prost(uint32, tag = "4")]
+            pub height: u32,
+            #[prost(enumeration = "super::Size", tag = "5")]
+            pub size: i32,
+            #[prost(string, tag = "6")]
+            pub url_suffix: std::string::String,
+        }
     }
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct UploadResponse {
@@ -20,6 +33,12 @@ pub mod media {
         pub file_extension: std::string::String,
         #[prost(string, tag = "4")]
         pub aspect_ratio: std::string::String,
+        #[prost(uint32, tag = "5")]
+        pub width: u32,
+        #[prost(uint32, tag = "6")]
+        pub height: u32,
+        #[prost(string, tag = "7")]
+        pub url_suffix: std::string::String,
     }
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct UploadRequest {
