@@ -49,6 +49,8 @@ impl Media for MediaService {
         for res_slice_buffer in response_buffers {
             let image_size = Size::from_i32(res_slice_buffer.size).unwrap();
             let file_path = create_image_path(&file_name.as_str(), image_size);
+            dbg!(&file_name);
+            dbg!(&file_path);
             let mut image_file = fs::File::create(file_path)
                 .map_err(|e| Status::internal(e.to_string()))?;
             image_file
