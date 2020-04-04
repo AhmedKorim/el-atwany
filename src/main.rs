@@ -14,7 +14,6 @@ use log::info;
 use std::env;
 use tonic::transport::Server;
 
-mod sora;
 mod pb;
 mod service;
 
