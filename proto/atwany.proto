@@ -32,8 +32,9 @@ message media {
 
 
         }
-        repeated MediaSize mediaMeta = 6;
-    }
+		repeated MediaSize mediaMeta = 6;
+		string blurHash=8;
+	}
     message UploadResponse {
         Size size = 1;
         bytes buffer = 2;
@@ -49,9 +50,19 @@ message media {
         MimeType mimetype = 2;
         string fileName = 3;
     }
+	message FileUpload {
+		bytes file = 1;
+		string fileExtension = 2;
+		string fileName = 3;
+	}
+	message FileUploadResponse {
+		string fileExtension = 1;
+	}
 }
 
 service Media {
     rpc Upload (media.UploadRequest) returns (stream media.UploadResponse);
+
+    rpc UploadFile (media.FileUpload) returns (media.FileUploadResponse);
     rpc UploadAndWrite (media.UploadRequest) returns (media.UploadAndWriteResponse);
 }

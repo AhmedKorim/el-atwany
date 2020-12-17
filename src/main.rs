@@ -13,12 +13,14 @@ use async_ctrlc::CtrlC;
 use log::info;
 use std::env;
 use tonic::transport::Server;
+use crate::service::blur;
 
 mod pb;
 mod service;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+	blur();
     env::set_var("RUST_LOG", "atwany");
 //    dotenv::dotenv()?;
     pretty_env_logger::init_timed();

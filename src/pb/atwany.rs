@@ -9,6 +9,8 @@ pub mod media {
         pub aspect_ratio: std::string::String,
         #[prost(message, repeated, tag = "6")]
         pub media_meta: ::std::vec::Vec<upload_and_write_response::MediaSize>,
+        #[prost(string, tag = "8")]
+        pub blur_hash: std::string::String,
     }
     pub mod upload_and_write_response {
         #[derive(Clone, PartialEq, ::prost::Message)]
@@ -48,6 +50,20 @@ pub mod media {
         pub mimetype: i32,
         #[prost(string, tag = "3")]
         pub file_name: std::string::String,
+    }
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct FileUpload {
+        #[prost(bytes, tag = "1")]
+        pub file: std::vec::Vec<u8>,
+        #[prost(string, tag = "2")]
+        pub file_extension: std::string::String,
+        #[prost(string, tag = "3")]
+        pub file_name: std::string::String,
+    }
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct FileUploadResponse {
+        #[prost(string, tag = "1")]
+        pub file_extension: std::string::String,
     }
     #[derive(
         Clone,
@@ -125,6 +141,13 @@ pub mod media_server {
             &self,
             request: tonic::Request<super::media::UploadRequest>,
         ) -> Result<tonic::Response<Self::UploadStream>, tonic::Status>;
+        async fn upload_file(
+            &self,
+            request: tonic::Request<super::media::FileUpload>,
+        ) -> Result<
+            tonic::Response<super::media::FileUploadResponse>,
+            tonic::Status,
+        >;
         async fn upload_and_write(
             &self,
             request: tonic::Request<super::media::UploadRequest>,
@@ -211,6 +234,47 @@ pub mod media_server {
                             tonic::server::Grpc::new(codec)
                         };
                         let res = grpc.server_streaming(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                },
+                "/atwany.Media/UploadFile" => {
+                    struct UploadFileSvc<T: Media>(pub Arc<T>);
+                    impl<T: Media>
+                        tonic::server::UnaryService<super::media::FileUpload>
+                        for UploadFileSvc<T>
+                    {
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        type Response = super::media::FileUploadResponse;
+
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::media::FileUpload>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut =
+                                async move { inner.upload_file(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let interceptor = inner.1.clone();
+                        let inner = inner.0;
+                        let method = UploadFileSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = if let Some(interceptor) = interceptor {
+                            tonic::server::Grpc::with_interceptor(
+                                codec,
+                                interceptor,
+                            )
+                        } else {
+                            tonic::server::Grpc::new(codec)
+                        };
+                        let res = grpc.unary(method, req).await;
                         Ok(res)
                     };
                     Box::pin(fut)
