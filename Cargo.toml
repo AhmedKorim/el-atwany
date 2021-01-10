@@ -19,7 +19,7 @@ image="0.23.12"
 blurhash="0.1"
 [dependencies.tokio]
 version = "^0.2"
-features = ["macros", "sync", "time" ,"rt-core"]
+features = ["macros", "sync", "time" ,"rt-core","fs"]
 
 [build-dependencies]
 tonic-build = "0.1"
