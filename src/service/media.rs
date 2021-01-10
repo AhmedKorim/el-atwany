@@ -4,19 +4,21 @@ use std::{
     path,
 };
 
-use futures::{channel::mpsc, SinkExt};
+use futures::{channel::mpsc, SinkExt, StreamExt};
 use image::{
-    imageops::FilterType, jpeg, jpeg::JPEGEncoder, DynamicImage,
-    GenericImageView, ImageFormat,
+    DynamicImage, GenericImageView, ImageFormat, imageops::FilterType,
+    jpeg, jpeg::JPEGEncoder,
 };
 use prost::Message;
 use tonic::{Request, Response, Status};
 
-pub use crate::pb::atwany::media_server::MediaServer;
 use crate::pb::atwany::{
-    media::{upload_and_write_response::MediaSize, *},
+    media::{*, upload_and_write_response::MediaSize},
     media_server::Media,
 };
+pub use crate::pb::atwany::media_server::MediaServer;
+use tokio::task::JoinHandle;
+use futures::core_reexport::ops::Deref;
 
 pub struct MediaService;
 
@@ -30,8 +32,13 @@ impl Media for MediaService {
     ) -> Result<Response<Self::UploadStream>, Status> {
         let req = request.into_inner();
         let (mut tx, rx) = mpsc::channel(4);
+        let img = image::load_from_memory(&req.image)
+            .map_err(|_| {
+                Status::internal("Failed to obtain image for blur hashing")
+            })?;
+
         tokio::spawn(async move {
-            let res = process(req).unwrap();
+            let res = process(img).await.unwrap();
             for res_slice in res {
                 tx.send(Ok(res_slice)).await.unwrap();
             }
@@ -66,18 +73,16 @@ impl Media for MediaService {
         let img = image::load_from_memory(&req.image)
             .map_err(|_| {
                 Status::internal("Failed to obtain image for blur hashing")
-            })?
-            .thumbnail(64, 64);
+            })?;
 
         let (width, height) = img.dimensions();
-		let blur_hash = blurhash::encode(4, 3, width, height, &img.to_rgba().into_vec());
+        let blur_hash = blurhash::encode(4, 3, width, height, &img.to_rgba().into_vec());
 
 
         let response_buffers =
-            process(req).map_err(|e| Status::internal(e.to_string()))?;
+            process(img).await.map_err(|_| Status::internal("Something went wrong"))?;
         let mut media_meta: Vec<MediaSize> =
-            Vec::with_capacity(response_buffers.capacity()); // todo make this
-                                                             // more dynamic
+            Vec::with_capacity(response_buffers.capacity());
         let aspect_ratio = response_buffers[0].aspect_ratio.clone();
         let file_extension = response_buffers[0].file_extension.clone();
         for res_slice_buffer in response_buffers {
@@ -120,109 +125,52 @@ fn create_file_path(file_name: &str, ext: &str) -> path::PathBuf {
     let root = env::current_dir().unwrap();
     root.join(format!("files/{}.{}", file_name, ext.to_string()))
 }
-pub fn blur() {
-    let path = create_file_path(
-        "119890471_1787496678077342_6268729416129342664_o",
-        "jpg",
-    );
-    let img = image::open(path).unwrap();
-    let img = img.thumbnail(30,30);
-	let (width, height) = img.dimensions();
-	let blurhash = blurhash::encode(4, 3, width, height, &img.to_rgba().into_vec());
-	dbg!(blurhash);
 
-}
 
-fn process(req: UploadRequest) -> anyhow::Result<Vec<UploadResponse>> {
-    let UploadRequest {
-        image, mimetype, ..
-    } = req;
-    let format = match MimeType::from_i32(mimetype).unwrap_or_default() {
-        MimeType::Png => ImageFormat::Png,
-        MimeType::Jpeg => ImageFormat::Jpeg,
-        MimeType::Gif => ImageFormat::Gif,
-        MimeType::Webp => ImageFormat::WebP,
-    };
-    let dynamic_image =
-        match image::load_from_memory_with_format(&image, format) {
-            Ok(image_data) => image_data,
-            Err(e) => {
-                dbg!(e.to_string());
-                image::load_from_memory(&image).unwrap()
-            },
-        };
-    let placeholder = dynamic_image.thumbnail(64, 64);
-    let thumbnail = dynamic_image.thumbnail(200, 200);
-    let small = dynamic_image.resize(400, 400, FilterType::Triangle);
-    let medium = dynamic_image.resize(
-        dynamic_image.width(),
-        dynamic_image.height(),
-        FilterType::Triangle,
-    );
-    let aspect_ratio = dynamic_image.width() / dynamic_image.height(); // 16:9
-    dbg!(aspect_ratio);
-    dbg!(format!(
-        " dynamic_image width {} height {}",
-        dynamic_image.width(),
-        dynamic_image.height()
-    ));
-    dbg!(format!(
-        "small width {} height {}",
-        small.width(),
-        small.height()
-    ));
-    dbg!(format!(
-        "medium width {} height {}",
-        medium.width(),
-        medium.height()
-    ));
-    let results = vec![
-        UploadResponse {
-            size: Size::Placeholder.into(),
-            buffer: get_image_bytes(&placeholder),
-            file_extension: "jpeg".to_string(),
-            aspect_ratio: aspect_ratio.to_string(),
-            width: placeholder.width().into(),
-            height: placeholder.height().into(),
-            url_suffix: Size::Placeholder.to_string(),
-        },
-        UploadResponse {
-            size: Size::Thumbnail.into(),
-            buffer: get_image_bytes(&thumbnail),
-            file_extension: "jpeg".to_string(),
-            aspect_ratio: aspect_ratio.to_string(),
-            width: thumbnail.width().into(),
-            height: thumbnail.height().into(),
-            url_suffix: Size::Thumbnail.to_string(),
-        },
-        UploadResponse {
-            size: Size::Small.into(),
-            buffer: get_image_bytes(&small),
-            file_extension: "jpeg".to_string(),
-            aspect_ratio: aspect_ratio.to_string(),
-            width: small.width().into(),
-            height: small.height().into(),
-            url_suffix: Size::Small.to_string(),
-        },
-        UploadResponse {
-            size: Size::Medium.into(),
-            buffer: get_image_bytes(&medium),
-            file_extension: "jpeg".to_string(),
-            aspect_ratio: aspect_ratio.to_string(),
-            width: medium.width().into(),
-            height: medium.height().into(),
-            url_suffix: Size::Medium.to_string(),
-        },
+const SIZE: [Size; 4] = [Size::Medium, Size::Placeholder, Size::Small, Size::Thumbnail];
+
+async fn process(image: DynamicImage) -> anyhow::Result<Vec<UploadResponse>, ()> {
+    let mut images: Vec<JoinHandle<UploadResponse>> = Vec::with_capacity(5);
+    let aspect_ratio = image.width() / image.height(); // 16:9
+
+    for size in SIZE.iter() {
+        let image = image.clone();
+        let aspect_ratio = aspect_ratio.clone();
+        images.push(tokio::spawn(async move {
+            let dim = match size {
+                Size::Placeholder => { 64 }
+                Size::Thumbnail => { 200 }
+                Size::Small => { 400 }
+                Size::Medium => { 800 }
+                _ => {
+                    unreachable!()
+                }
+            };
+            let image = image.thumbnail(dim, dim);
+            UploadResponse {
+                size: size.clone().into(),
+                buffer: get_image_bytes(&image),
+                file_extension: "jpeg".to_string(),
+                aspect_ratio: aspect_ratio.to_string(),
+                width: image.width().into(),
+                height: image.height().into(),
+                url_suffix: size.to_string(),
+            }
+        }))
+    }
+    let mut images: Vec<_> = futures::future::join_all(images).await.into_iter().flatten().collect();
+    let mut results = vec![
         UploadResponse {
             size: Size::Original.into(),
-            buffer: image,
+            buffer: get_image_bytes(&image),
             file_extension: "jpeg".to_string(),
             aspect_ratio: aspect_ratio.to_string(),
-            width: dynamic_image.width().into(),
-            height: dynamic_image.height().into(),
+            width: image.width().into(),
+            height: image.height().into(),
             url_suffix: Size::Original.to_string(),
         },
     ];
+    results.append(&mut images);
     Ok(results)
 }
 
@@ -235,7 +183,7 @@ fn get_image_bytes(image: &DynamicImage) -> Vec<u8> {
         image.height(),
         image.color(),
     )
-    .unwrap();
+        .unwrap();
     output
 }
 
