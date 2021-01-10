@@ -13,14 +13,12 @@ use async_ctrlc::CtrlC;
 use log::info;
 use std::env;
 use tonic::transport::Server;
-use crate::service::blur;
 
 mod pb;
 mod service;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-	blur();
     env::set_var("RUST_LOG", "atwany");
 //    dotenv::dotenv()?;
     pretty_env_logger::init_timed();
@@ -28,6 +26,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting Server on {}", addr);
     let svc = service::MediaServer::new(service::MediaService);
     Server::builder()
+
         .concurrency_limit_per_connection(100)
         .tcp_nodelay(true)
         .add_service(svc)
