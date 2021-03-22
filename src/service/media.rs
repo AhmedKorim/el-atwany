@@ -94,13 +94,11 @@ impl Media for MediaService {
 }
 
 fn create_image_path(file_name: &str, size: Size) -> path::PathBuf {
-	let root = env::current_dir().unwrap();
-	root.join(format!("images/{}_{}.jpeg", file_name, size.to_string()))
+	format!("/images/{}_{}.jpeg", file_name, size.to_string()).into()
 }
 
 fn create_file_path(file_name: &str, ext: &str) -> path::PathBuf {
-	let root = env::current_dir().unwrap();
-	root.join(format!("files/{}.{}", file_name, ext.to_string()))
+	format!("/files/{}.{}", file_name, ext.to_string()).into()
 }
 
 
