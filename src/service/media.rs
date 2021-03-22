@@ -1,17 +1,12 @@
 use std::{
 	env, fs,
-	io::{Cursor, Write},
+	io::{ Write},
 	path,
 };
-use std::fs::File;
 
-use futures::{channel::mpsc, SinkExt, StreamExt, TryFutureExt};
-use futures::core_reexport::ops::Deref;
-use image::{
-	DynamicImage, GenericImageView, ImageFormat, imageops::FilterType,
-	jpeg, jpeg::JPEGEncoder,
-};
-use prost::Message;
+use futures::{channel::mpsc, SinkExt, TryFutureExt};
+
+use image::{DynamicImage, GenericImageView};
 use tokio::io::AsyncWriteExt;
 use tokio::task::JoinHandle;
 use tonic::{Request, Response, Status};
@@ -21,6 +16,7 @@ use crate::pb::atwany::{
 	media_server::Media,
 };
 pub use crate::pb::atwany::media_server::MediaServer;
+use image::codecs::jpeg::JpegEncoder;
 
 pub struct MediaService;
 
@@ -157,7 +153,7 @@ async fn process(image: DynamicImage) -> anyhow::Result<Vec<UploadResponse>, ()>
 
 fn get_image_bytes(image: &DynamicImage) -> Vec<u8> {
 	let mut output = Vec::new();
-	let mut j = jpeg::JPEGEncoder::new_with_quality(&mut output, 20);
+	let mut j = JpegEncoder::new_with_quality(&mut output, 20);
 	j.encode(
 		&image.to_bytes(),
 		image.width(),
@@ -186,7 +182,7 @@ impl ToString for Size {
 
 pub async fn gen_blur_hash(img: DynamicImage) -> Result<String, ()> {
 	let (width, height) = img.dimensions();
-	Ok(blurhash::encode(4, 3, width, height, &img.to_rgba().into_vec()))
+	Ok(blurhash::encode(4, 3, width, height, &img.to_rgba8().into_vec()))
 }
 
 pub async fn write_response_buffers(res_bufs: Vec<UploadResponse>, file_name: String) -> Result<Vec<MediaSize>, Status> {

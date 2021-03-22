@@ -8,7 +8,7 @@ WORKDIR app
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 
-FROM rust as builder
+FROM rustlang/rust:nightly as builder
 WORKDIR app
 COPY . .
 # Copy over the cached dependencies
