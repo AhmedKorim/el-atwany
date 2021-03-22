@@ -18,5 +18,9 @@ RUN cargo build --release --bin atwany
 
 FROM rust as runtime
 WORKDIR app
+VOLUME /files
+VOLUME /images
+
 COPY --from=builder /app/target/release/atwany /usr/local/bin
+
 ENTRYPOINT ["/usr/local/bin/atwany"]
