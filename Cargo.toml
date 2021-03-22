@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["ahmed <ahmedkorrim@gmail.com>", "Shady Khalifa <shekohex@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+name = "atwany"
+path = "src/main.rs"
+
 [dependencies]
 tonic = { version = "0.1", features = ["tls"] }
 bytes = "0.5"
