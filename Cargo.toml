@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["ahmed <ahmedkorrim@gmail.com>", "Shady Khalifa <shekohex@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+name = "atwany"
+path = "src/main.rs"
+
 [dependencies]
 tonic = { version = "0.1", features = ["tls"] }
 bytes = "0.5"
@@ -15,11 +19,11 @@ prost-types = "0.6"
 async-ctrlc = "1.0"
 dotenv = "0.15.0"
 futures = "0.3"
-image="0.23.12"
-blurhash="0.1"
+image = "0.23.12"
+blurhash = "0.1"
 [dependencies.tokio]
 version = "^0.2"
-features = ["macros", "sync", "time" ,"rt-core","fs"]
+features = ["macros", "sync", "time", "rt-core", "fs"]
 
 [build-dependencies]
 tonic-build = "0.1"
